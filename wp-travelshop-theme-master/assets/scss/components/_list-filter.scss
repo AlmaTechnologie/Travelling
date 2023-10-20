@@ -1,0 +1,326 @@
+.content-block.content-block-list-filter {
+
+  .list-filter {
+    border-radius: $filter-border-radius;
+    background-color: $filter-bg;
+    padding: $filter-spacer-x;
+
+    // -- border only if not 0
+    @if ( $filter-border-width != 0 ) {
+      border: $filter-border-width solid $filter-border-color;
+    }
+
+    // -- filter header
+    .list-filter-header {
+      > button.list-filter-close {
+        display: none;
+      }
+
+      .h4 {
+        margin: 0 0 $filter-spacer-y 0;
+      }
+    }
+
+    // -- filter boxes
+    .list-filter-boxes {
+
+      .list-filter-box {
+
+        // -- title
+        .list-filter-box-title,
+        > label {
+          display: block;
+          font: {
+            weight: $filter-box-title-font-weight;
+            size: $filter-box-title-font-size;
+          }
+          margin: 0 0 $filter-spacer-y 0;
+
+          > strong {
+            font-weight: $font-weight-bold;
+          }
+        }
+
+        .list-filter-box-title {
+          display: flex;
+          flex-direction: row;
+          flex-wrap: nowrap;
+
+          justify-content: space-between;
+          align-items: center;
+          cursor: pointer;
+
+          svg {
+            width: $font-size-base;
+            height: $font-size-base;
+
+            color: $body-color-light;
+            transition: color $animation-speed-default, transform $animation-speed-default;
+
+          }
+
+          &:hover {
+            svg {
+              color: $primary;
+            }
+          }
+        }
+
+        // -- search
+        .list-filter-box-search {
+          margin: 0 0 $filter-spacer-y  0;
+
+          .input-group {
+            @extend %custom-input-group;
+          }
+        }
+
+        // -- footer
+        .list-filter-box-footer {
+          margin: $filter-spacer-y 0 0 0;
+
+          button {
+            @include button-reset();
+            font-size: $font-size-sm;
+            color: $body-color;
+            transition: color $animation-speed-default;
+            text-align: left;
+            display: block;
+            width: 100%;
+            font-weight: $font-weight-bold;
+
+            &:focus, &:active {
+              color: $body-color;
+              text-decoration: underline;
+            }
+
+            &:hover {
+              color: $primary;
+            }
+          }
+        }
+
+        // -- header change for title
+        &.list-filter-box-price {
+          .list-filter-box-title {
+            margin: 0 0 ($filter-spacer-y + 2rem) 0;
+          }
+        }
+
+
+        // -- daterange picker
+        &.list-filter-box-date-range-picker {
+          position: relative;
+
+          @include media-breakpoint-up(lg) {
+            .daterange-overlay {
+              left: -0.5rem;
+              transform: translateX(0);
+
+              .daterange-overlay-header {
+                justify-content: start !important;
+              }
+            }
+          }
+
+          .search-field-input-field {
+            @extend .form-control;
+            background-color: $input-bg !important;
+          }
+
+          // -- datepicker input
+          .search-field-input.search-field-input--datepicker {
+            @extend %datepicker-input;
+          }
+        }
+
+        // -- category definition, board-type definition, transport-type definition
+        &.category-tree,
+        &.board-type,
+        &.transport-type {
+          .form-check {
+            @extend %custom-checkbox;
+
+            + .form-check {
+              margin-top: $custom-checkbox-spacer;
+            }
+
+            // -- bigger checkboxes if mobile view
+            @if ( $filter-mobile-break != null ) {
+              @extend %custom-checkbox-large-down-#{$filter-mobile-break};
+
+              @include media-breakpoint-down($filter-mobile-break) {
+                + .form-check {
+                  margin-top: $custom-checkbox-large-spacer;
+                }
+              }
+            }
+          }
+        }
+
+        + .list-filter-box {
+          padding-top: $filter-spacer-y;
+
+          @if ( $filter-box-divider ) {
+            margin-top: $filter-spacer-y;
+            border-top: $filter-box-divider-width solid $filter-box-divider-color;
+          }
+        }
+
+        // -- hidden behaviour
+        &.is-hidden {
+          .list-filter-box-title {
+            svg {
+              transform: scaleY(-1);
+            }
+          }
+
+          .list-filter-box-body,
+          .list-filter-box-footer,
+          .list-filter-box-search {
+            display: none;
+          }
+
+          &.list-filter-box-price {
+            .list-filter-box-title {
+              margin-bottom: $filter-spacer-y;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // -- list filter footer
+  .list-filter-footer {
+    padding-top: $filter-spacer-y;
+
+    @if ( $filter-box-divider ) {
+      margin-top: $filter-spacer-y;
+      border-top: $filter-box-divider-width solid $filter-box-divider-color;
+    }
+  }
+
+  // -- mobile view
+  @if  ( $filter-mobile-break != null ) {
+
+    @if ( $filter-mobile-view-type == 'modal' or $filter-mobile-view-type == 'modal-fullscreen' ) {
+      @extend %modal-wrapper-down-#{$filter-mobile-break};
+
+      @if ( $filter-mobile-view-type == 'modal-fullscreen' ) {
+        @extend %modal-wrapper-fullscreen-down-#{$filter-mobile-break};
+      }
+
+      > form {
+        @extend %modal-inner-down-#{$filter-mobile-break};
+
+        @if ( $filter-mobile-view-type == 'modal-fullscreen' ) {
+          @extend %modal-inner-fullscreen-down-#{$filter-mobile-break};
+        }
+      }
+
+      > form .list-filter {
+        @extend %modal-content-down-#{$filter-mobile-break};
+
+        @if ( $filter-mobile-view-type == 'modal-fullscreen' ) {
+          @extend %modal-content-fullscreen-down-#{$filter-mobile-break};
+        }
+      }
+
+      &.is-open {
+        @extend %modal-open-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-header {
+        @extend %modal-header-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-boxes {
+        @extend %modal-body-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-footer {
+        @include media-breakpoint-down($filter-mobile-break) {
+          margin-top: 0;
+        }
+        @extend %modal-footer-down-#{$filter-mobile-break};
+      }
+    }
+
+    // apple like
+    @if ( $filter-mobile-view-type == 'apple-like' ) {
+      @extend %apple-like-wrapper-down-#{$filter-mobile-break};
+
+      // -- inner
+      > form .list-filter {
+        @extend %apple-like-content-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-header {
+        @extend %apple-like-header-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-boxes {
+        @extend %apple-like-body-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-footer {
+        @include media-breakpoint-down($filter-mobile-break) {
+          margin-top: 0;
+        }
+        @extend %apple-like-footer-down-#{$filter-mobile-break};
+      }
+
+      // -- open state
+      &.is-open {
+        @extend %apple-like-open-down-#{$filter-mobile-break};
+
+        > form .list-filter {
+          @extend %apple-like-content-open-down-#{$filter-mobile-break};
+        }
+      }
+    }
+
+    // offcanvas
+    @if ( $filter-mobile-view-type == 'offcanvas' ) {
+      @extend %offcanvas-wrapper-down-#{$filter-mobile-break};
+
+      // -- inner
+      > form .list-filter {
+        @extend %offcanvas-content-down-#{$filter-mobile-break};
+        @extend %offcanvas-direction-#{$filter-offcanvas-direction}-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-header {
+        @extend %offcanvas-header-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-boxes {
+        @extend %offcanvas-body-down-#{$filter-mobile-break};
+      }
+
+      .list-filter-footer {
+        @include media-breakpoint-down($filter-mobile-break) {
+          margin-top: 0;
+        }
+        @extend %offcanvas-footer-down-#{$filter-mobile-break};
+      }
+
+      // -- open state
+      &.is-open {
+        @extend %offcanvas-open-down-#{$filter-mobile-break};
+
+        > form .list-filter {
+          @extend %offcanvas-content-open-down-#{$filter-mobile-break};
+        }
+      }
+    }
+
+
+  }
+}
+
+// @todo: decline it outside here, ans basic element
+#wpadminbar {
+  z-index: ($zindex-modal-backdrop - 1) !important;
+}

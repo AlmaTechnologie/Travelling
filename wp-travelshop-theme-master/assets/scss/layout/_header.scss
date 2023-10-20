@@ -1,0 +1,211 @@
+@if ( $header-use-default == true ) {
+  header.header-main {
+    background-color: $header-bg;
+    color: $header-color;
+
+    @include spacing-generator($header-paddings-y, 'y');
+
+    // -- mobile smaller row settings, to reduce spacings
+    .row.header-main-row {
+      margin-left: -($grid-gutter-width / 6);
+      margin-right: -($grid-gutter-width / 6);
+
+      > div {
+        padding-left: ($grid-gutter-width / 6);
+        padding-right: ($grid-gutter-width / 6);
+      }
+    }
+
+    // -- normal row settings by break defined in variables
+    @include get-custom-breakpoint($header-reduce-paddings) {
+      // -- normal row settings
+      .row.header-main-row {
+        margin-left: -($grid-gutter-width / 2);
+        margin-right: -($grid-gutter-width / 2);
+
+        > div {
+          padding-left: ($grid-gutter-width / 2);
+          padding-right: ($grid-gutter-width / 2);
+        }
+      }
+    }
+
+    // -- small version?
+    @if ( $header-small == true ) {
+      transition: padding-top .3s, padding-bottom $animation-speed-default;
+
+      &.affix {
+        padding-top: $header-small-padding-y;
+        padding-bottom: $header-small-padding-y;
+      }
+    }
+
+    // -- sticky? @todo: make headerfixed, cuz of layout shifts by makingheader smaller
+    @if ( $header-sticky == true ) {
+      position: fixed;
+      right:0;
+      left:0;
+      top:0;
+      z-index: $zindex-sticky;
+    }
+
+    // -- box-shadow?
+    @if ( $header-box-shadow != null ) {
+      box-shadow: $header-box-shadow;
+    }
+
+    // -- actions
+    .header-action {
+      @include button-reset();
+
+      height: $header-action-height;
+      min-width: $header-action-width;
+
+      display: flex;
+      justify-content: center;
+      align-items: center;
+
+      .header-action--icon {
+        height: $header-action-height;
+        width: $header-action-width;
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        > svg {
+          color: $header-action-icon-color;
+          transition: color $animation-speed-default;
+
+          width: $header-action-icon-width;
+          height: $header-action-icon-height;
+        }
+      }
+
+      &:hover, &:focus, &:active {
+        .header-action--icon {
+          > svg {
+            color: $header-action-hover-icon-color;
+          }
+        }
+      }
+
+      // specific action definitions
+      &--wishlist {
+        padding-right: ( ($header-wishlist-count-size / 4) * 3 );
+        position: relative;
+
+        .wishlist-count {
+          width: $header-wishlist-count-size;
+          height: $header-wishlist-count-size;
+
+          position: absolute;
+          right:0;
+          top: 0;
+
+          background-color: $header-wishlist-count-bg;
+          line-height: $header-wishlist-count-size;
+          text-align: center;
+
+          font-size: $header-wishlist-count-font-size;
+          color: $header-wishlist-count-color;
+
+          @include border-radius(50%);
+        }
+      }
+    }
+
+    // -- hotline
+    .hotline-link {
+      color: $header-hotline-info-color;
+      transition: color $animation-speed-default;
+      text-decoration: none;
+
+      display: flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+
+      align-items: center;
+
+      gap: .5rem;
+
+      .hotline-icon {
+        width: 100%;
+        max-width: $header-action-height;
+        flex: 0 0 $header-action-height;
+
+        color: $header-hotline-icon-color;
+        transition: color $animation-speed-default;
+
+        height: $header-action-height;
+
+        display: flex;
+
+        align-items: center;
+        justify-content: center;
+
+        svg {
+          width: $header-action-icon-width;
+          height: $header-action-icon-height;
+        }
+      }
+
+      .hotline-info {
+        flex: 1;
+        display: none;
+        flex-direction: column;
+
+        line-height: 1;
+        gap: 0.25rem;
+
+        @include get-custom-breakpoint($header-hotline-show-info) {
+          display: inline-flex;
+        }
+
+        .hotline-number,
+        .hotline-info {
+          white-space: nowrap;
+        }
+
+        .hotline-number {
+          color: $header-hotline-color;
+          transition: color $animation-speed-default;
+
+          font-size: $font-size-lg;
+        }
+
+        .hotline-title {
+          font-size: $font-size-sm;
+        }
+      }
+
+      &:hover, &:focus, &:active {
+        text-decoration: none;
+        color: $header-hotline-hover-info-color;
+
+        .hotline-info {
+          .hotline-number {
+            color: $header-hotline-hover-color;
+          }
+        }
+
+        .hotline-icon {
+          color: $header-hotline-hover-icon-color;
+        }
+      }
+    }
+
+    // -- Fulltext
+    .search-field-input-field,
+    .auto-complete-overlay {
+      @extend %input-field-base;
+    }
+
+    .search-field-input.search-field-input--fulltext {
+      @extend %fulltext-input;
+
+      @include border-radius($input-border-radius);
+      border: $input-border-width solid $input-border-color;
+    }
+  }
+}

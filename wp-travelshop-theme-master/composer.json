@@ -1,0 +1,19 @@
+{
+  "require": {
+    "pressmind/sdk": "dev-master",
+    "php": "^7.4 || ^8.0",
+    "ext-json": "*",
+    "ext-readline": "*",
+    "ext-curl": "*",
+    "ext-bcmath": "*",
+    "ext-mbstring": "*",
+    "ext-mongodb": "*",
+    "mongodb/mongodb": "*",
+    "ext-imagick": "*",
+    "vlucas/phpdotenv" : "*",
+    "geoip2/geoip2": "~2.0"
+  },
+  "suggest" : {
+    "aws/aws-sdk-php" : "Allows you to store media assets on S3"
+  }
+}

@@ -1,0 +1,505 @@
+%product-badge {
+  line-height: 1;
+  padding: $badge-padding-y $badge-padding-x;
+
+  @include border-radius($badge-border-radius);
+
+  font: {
+    size: $badge-font-size;
+    weight: $badge-font-weight;
+  }
+
+  background-color: $gray-700;
+  color: #fff;
+}
+
+%product-badge-danger {
+  background-color: $danger; // @todo: maybe green better? Cuz read is danger, in every shop new == green
+}
+
+%card-title-styles {
+  color: $travel-card-title-color;
+  margin: 0 0 $travel-card-spacer-y 0;
+
+  // set link settings for better optik + reading / usage
+  > a {
+    color: inherit;
+    transition: color $animation-speed-default;
+    text-decoration: none;
+
+    &:hover {
+      color: $travel-card-title-hover-color;
+    }
+
+    &:active, &:focus {
+      color: $travel-card-title-active-color;
+    }
+
+    &:active {
+      text-decoration: underline;
+    }
+  }
+}
+
+%card-title-settings {
+  // -- set font sizes
+  @include font-size-generator($card-title-sizes);
+
+  @extend %card-title-styles;
+}
+
+/**
+ * small ( 2 column ) travel card
+ */
+%card-travel-small {
+  flex-direction: row;
+  border-bottom: $travel-card-border-width solid $travel-card-border-color;
+  padding-bottom: $travel-card-spacer-x;
+  margin-bottom: $travel-card-spacer-x;
+
+  // -- reset
+  box-shadow: none;
+
+  @include border-radius(0);
+
+  .card-image {
+    flex: 0 0 ((100% / 12) * 5); // 5 of 12
+    width: 100%;
+    max-width: ((100% / 12) * 5);
+
+    @include media-breakpoint-down(xs) {
+      flex: 0 0 ((100% / 12) * 4);
+      max-width: ((100% / 12) * 4);
+    }
+
+    // -- set offset left top bottom to make image lay above border if border width not 0
+    @if $travel-card-border-width != 0 {
+      > a {
+        margin-left: -$travel-card-border-width;
+        margin-top: -$travel-card-border-width;
+        margin-bottom: -$travel-card-border-width;
+
+        display: flex;
+      }
+    }
+
+    // -- set border-radius for stripe teaser element
+    img {
+      @include border-radius($travel-card-border-radius);
+    }
+  }
+
+  .card-body {
+    flex: 0 0 ((100% / 12) * 7); // 5 of 12
+    width: 100%;
+    max-width: ((100% / 12) * 7);
+
+
+    @include media-breakpoint-down($travel-card-break-down) {
+      align-self: center;
+    }
+
+    @include media-breakpoint-down(xs) {
+      flex: 0 0 ((100% / 12) * 8);
+      max-width: ((100% / 12) * 8);
+    }
+
+    padding: 0 0 0 $travel-card-spacer-x;
+
+    .attribute-row {
+      display: none;
+    }
+
+    @include media-breakpoint-down($travel-card-break-down) {
+      .card-text {
+        display: none;
+      }
+
+      h1.card-title {
+        margin-bottom: 0;
+      }
+    }
+
+    .card-body--bottom {
+      @include media-breakpoint-down($travel-card-break-down) {
+        padding-top: .25rem;
+      }
+
+      .price-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+
+        gap: .5rem;
+      }
+
+      .btn.btn-primary {
+        display: inline-block;
+        margin-top: 0;
+
+        > small span {
+          display: none;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * normal travel card teaser
+ */
+%card-travel-default {
+  @include get-custom-breakpoint($travel-card-break) {
+    flex-direction: column;
+    height: 100%;
+
+    border: $travel-card-border-width solid $travel-card-border-color;
+    @include get-element-shadow('travel-teaser');
+
+    // -- reset
+    padding-bottom: 0;
+    margin-bottom: 0;
+
+    // -- set global element border radius
+    @include border-radius($travel-card-border-radius);
+
+    // -- reset flex for normal teaser
+    .card-image {
+      flex: 0;
+      width: 100%;
+      max-width: 100%;
+
+      // -- set offset left top bottom to make image lay above border if border width not 0
+      @if $travel-card-border-width != 0 {
+        > a {
+          margin-left: -$travel-card-border-width;
+          margin-top: -$travel-card-border-width;
+          margin-bottom: 0;
+          margin-right: -$travel-card-border-width;
+        }
+      }
+
+      // -- set border-radius for stripe teaser element
+      img {
+        @include border-top-right-radius($travel-card-border-radius);
+        @include border-top-left-radius($travel-card-border-radius);
+        @include border-bottom-left-radius(0);
+        @include border-bottom-right-radius(0);
+      }
+    }
+
+    .card-body {
+      flex: 1;
+      width: 100%;
+      max-width: 100%;
+      padding: $travel-card-spacer-x;
+
+      display: flex;
+      flex-direction: column;
+      flex-wrap: nowrap;
+
+      justify-content: space-between;
+
+      .attribute-row {
+        display: block;
+      }
+
+      .card-body--bottom {
+        .price-row {
+          display: flex;
+          flex-direction: column;
+          align-items: unset;
+          justify-content: unset;
+
+          gap: 0;
+        }
+
+        .btn.btn-primary {
+          display: block;
+          margin-top: $travel-card-spacer-y;
+
+          > small span {
+            display: inline;
+          }
+        }
+      }
+    }
+
+    .discount-wrapper {
+      margin-top: $travel-card-spacer-y;
+
+      @include discount-border();
+    }
+  }
+}
+
+.card-travel {
+
+  display: flex;
+  background-color: $travel-card-bg;
+
+  /**
+   * define flex settings here
+   * they're used for "travel-box-break" into stripe on small devices
+   */
+
+  &:not(.card-travel--stripe) {
+    @if ($travel-card-break != null) {
+      @extend %card-travel-small;
+    }
+
+    // -- break teaser into common teaser
+    @extend %card-travel-default;
+  }
+
+  // -- image
+  .card-image {
+    position: relative;
+
+    // -- set card badge settings
+    .card-badge {
+      position:absolute;
+      top: $travel-card-spacer-x;
+      left: $travel-card-spacer-x;
+
+      @extend %product-badge;
+
+      // -- if show as pill
+      @if $travel-card-badge-pill {
+        padding: $badge-padding-y $badge-pill-padding-x;
+        @include border-radius($badge-pill-border-radius);
+      }
+
+      &--new {
+        @extend %product-badge-danger;
+      }
+    }
+
+    // -- positioning add to wishlist
+    .add-to-wishlist {
+      position: absolute;
+
+      // -- simple calculation to position in "border" of contents of card
+      // -- this makes the aligment of icon inside similar to the size of $travel-card-spacer-x
+      top: ($travel-card-spacer-x - (($add-to-wishlist-size - $add-to-wishlist-icon-size) / 2 ));
+      right: ($travel-card-spacer-x - (($add-to-wishlist-size - $add-to-wishlist-icon-size) / 2 ));
+
+      z-index: 2;
+
+      // -- color settings on image
+      @extend %add-to-wishlist-on-image-color;
+    }
+
+    > a {
+      display: block;
+    }
+  }
+
+  // -- body
+  .card-body {
+    @include font-size-generator($travel-card-body-sizes);
+
+    p {
+      margin: 0 0 $travel-card-spacer-y 0;
+    }
+
+    .card-text--fade-out {
+      margin-bottom: 0;
+
+      // -- default is 3 lines, font-size-base + line-height-base
+      @include fade-out-text($font-size-sm);
+
+      @include media-breakpoint-up(lg) {
+        @include fade-out-text();
+      }
+    }
+
+    h1.card-title {
+      @extend %card-title-settings;
+
+      // specific travel card font size title
+      @include font-size-generator($travel-card-title-sizes);
+    }
+
+    .card-body--bottom {
+      padding-top: $travel-card-spacer-y;
+
+      /**
+       * Date row
+       */
+      .date-row {
+        .dropdown {
+          @extend %date-dropdown;
+        }
+      }
+    }
+  }
+
+  // -- stripe travel card
+  &.card-travel--stripe {
+    // -- as default
+    @extend %card-travel-small;
+
+    // -- some changes for the stripe teaser
+    .card-body {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+
+      @include media-breakpoint-up(md) {
+        .card-body--top {
+          .attribute-row {
+            display: block;
+          }
+        }
+
+        .card-body--bottom {
+
+          display: flex;
+          flex-direction: row;
+          flex-wrap: nowrap;
+
+          align-items: flex-end;
+
+          .date-row {
+            flex: 1;
+          }
+
+          .price-row {
+            flex-direction: column;
+            flex: 0;
+
+            .btn.btn-primary {
+              white-space: nowrap;
+
+              > small span {
+                display: inline;
+              }
+            }
+          }
+        }
+      }
+    }
+
+  }
+
+  // -- date dropdown
+  .date-row {
+    .dropdown {
+      .dropdown-toggle:hover {
+        .more-dates {
+          text-decoration: underline;
+        }
+      }
+
+      .dropdown-menu {
+        margin-top: 0.5rem;
+        border-color: $travel-card-border-color;
+        width: 100%;
+        max-width: 16rem;
+        max-height: 14rem;
+        overflow-x: auto;
+
+        @include scrollbars('pill', .5rem, rgba(#000, .25), $dropdown-bg);
+
+        .dropdown-header,
+        .dropdown-item {
+          padding-left: 1rem;
+          padding-right: 1rem;
+        }
+
+        .dropdown-item {
+          padding-top: .25rem;
+          padding-bottom: .25rem;
+
+          display: flex;
+          gap: .25rem;
+          align-items: center;
+          flex-direction: row;
+          flex-wrap: nowrap;
+
+          transition: background-color $animation-speed-default;
+          font-size: $font-size-sm;
+
+          &:hover, &:focus, &:active {
+            color: $dropdown-color;
+            background-color: $dropdown-link-hover-bg;
+          }
+        }
+
+        .dropdown-header {
+          padding-top: .25rem;
+          padding-bottom: .25rem;
+          font-size: $font-size-xs;
+          margin-bottom: 0;
+        }
+
+        .dropdown-item + .dropdown-header {
+          margin-top: .25rem;
+        }
+      }
+    }
+  }
+}
+
+// -- reset border/padding/margin-bottom when small teaser for last child
+@if ( $travel-card-break != null ) {
+  .card-travel-wrapper:last-child {
+    .card-travel {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: 0;
+
+      @include get-custom-breakpoint($travel-card-break) {
+        border-bottom: $travel-card-border-width solid $travel-card-border-color;
+      }
+    }
+  }
+}
+
+/**
+ * another dimensions for travel calendar
+ */
+.product-calendar-group-item--product .card-travel.card-travel--stripe {
+  @include border-bottom-radius($travel-card-border-radius);
+  border-bottom: 0 !important;
+  border-top: $travel-card-border-width solid $travel-card-border-color;
+
+  .card-body {
+    padding: $travel-card-spacer-x;
+  }
+
+  .card-image {
+    img {
+      @include border-right-radius(0);
+      @include border-top-radius(0)
+    }
+  }
+
+  @include media-breakpoint-up(md) {
+    .card-image {
+      flex: 0 0 ((100% / 12) * 4); // 4 of 12
+      width: 100%;
+      max-width: ((100% / 12) * 4);
+    }
+
+
+    .card-body {
+      flex: 0 0 ((100% / 12) * 8); // 8 of 12
+      width: 100%;
+      max-width: ((100% / 12) * 8);
+    }
+  }
+
+}
+
+/**
+ * Little border fix for stripe
+ */
+.card-travel-wrapper.card-travel-wrapper--stripe:last-child {
+  .card-travel.card-travel--stripe {
+    border-bottom: 0;
+  }
+}

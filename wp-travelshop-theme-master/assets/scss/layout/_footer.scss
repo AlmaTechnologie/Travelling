@@ -1,0 +1,144 @@
+@if ( $footer-use-default == true ) {
+  footer.footer-main {
+    background-color: $footer-bg;
+    color: $footer-color;
+    line-height: $footer-line-height;
+
+    @include font-size-generator($footer-font-sizes);
+
+    // -- different spacings for paragraphs
+    p {
+      @include spacing-generator($footer-paragraph-margins, 'bottom', 'margin');
+    }
+
+    // -- footer trust items
+    @if ( $footer-use-trust == true ) {
+      .footer-main--trust {
+        @include spacing-generator($footer-paddings-y, 'top');
+        background-color: $footer-trust-bg;
+
+        .trust-item{
+          @include spacing-generator($footer-paddings-y, 'bottom');
+          @include font-size-generator($footer-trust-item-font-sizes);
+
+          // -- trust item settings
+          text-align: center;
+          color: $footer-trust-item-color;
+
+
+          .trust-item--icon {
+            @include border-radius($footer-trust-item-icon-border-radius);
+            @include spacing-generator($footer-trust-item-icon-paddings, 'around', 'padding');
+
+            margin: 0 auto;
+            color: $footer-trust-item-icon-color;
+
+            // -- spacing generator with 'around' can be used for various attributes in responsive behaviour
+            @include spacing-generator($footer-trust-item-icon-max-widths, 'around', 'max-width');
+
+            // border
+            @if ( $footer-trust-item-icon-border-width != 0 ) {
+              border: $footer-trust-item-icon-border-width solid $footer-trust-item-icon-border-color;
+            }
+
+            // bg
+            @if ( $footer-trust-item-icon-bg != transparent ) {
+              background-color: $footer-trust-item-icon-bg;
+            } @else {
+              padding-bottom: 0 !important;
+              padding-top: 0 !important;
+            }
+
+            .icon-holder {
+              width: 100%;
+              padding-bottom: 100%;
+              position: relative;
+
+              > svg {
+                width: 100%;
+                height: 100%;
+
+                position: absolute;
+                top:0;
+                left:0;
+                right:0;
+                bottom:0;
+              }
+            }
+          }
+
+          .trust-item--title {
+            @include spacing-generator($footer-trust-item-title-margins, 'top', 'margin');
+          }
+        }
+      }
+    }
+
+    // -- footer boxes
+    .footer-main--boxes {
+      @include spacing-generator($footer-paddings-y, 'top');
+
+      .col-footer-box {
+        @include spacing-generator($footer-paddings-y, 'bottom');
+      }
+
+      .h5 {
+        color: $footer-heading-color;
+        margin-bottom: 0;
+
+        @include spacing-generator($footer-headings-bottom-margins, 'bottom', 'padding');
+      }
+
+      // -- nav
+      .nav.flex-column {
+
+        @include spacing-generator($footer-nav-link-spacers, 'around', 'gap');
+
+        a {
+          color: $footer-nav-link-color;
+          transition: color $animation-speed-default;
+          text-decoration: none;
+
+          &:hover {
+            color: $footer-nav-link-hover-color;
+            text-decoration: none;
+          }
+
+          &:active, &:focus {
+            color: $footer-nav-link-active-color;
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+
+    // -- footer meta
+    .footer-main--meta {
+      @include spacing-generator($footer-paddings-y, 'bottom');
+
+      // -- nav
+      .nav.flex-row {
+        gap: $footer-meta-nav-link-spacer;
+
+        @include font-size-generator($footer-meta-font-sizes);
+
+        a {
+          color: $footer-meta-nav-link-color;
+          transition: color $animation-speed-default;
+          text-decoration: none;
+
+          &:hover {
+            color: $footer-meta-nav-link-hover-color;
+            text-decoration: none;
+          }
+
+          &:active, &:focus {
+            color: $footer-meta-nav-link-active-color;
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+
+  }
+}

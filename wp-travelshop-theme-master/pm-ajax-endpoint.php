@@ -1,0 +1,560 @@
+<?php
+/**
+ * Custom Ajax Endpoint to avoid loading a full wordpress stack load with WordPress's regular admin-ajax.php
+ */
+
+use \Pressmind\Travelshop\Search;
+use \Pressmind\ORM\Object\MediaObject;
+use \Pressmind\Search\CheapestPrice;
+use \Pressmind\Travelshop\PriceHandler;
+use \Pressmind\Travelshop\IB3Tools;
+use \Pressmind\Travelshop\Template;
+use \Pressmind\Travelshop\CalendarGenerator;
+
+
+ini_set('display_errors', 'On');
+error_reporting(-1);
+
+define('DOING_AJAX', true);
+
+// -- little fix for icon paths
+if ( !function_exists('get_stylesheet_directory_uri') ) {
+
+    function get_stylesheet_directory_uri() {
+        return '/wp-content/themes/travelshop';
+    }
+
+}
+require_once 'functions/remove_empty_paragraphs.php';
+require_once 'vendor/autoload.php';
+$dotenv = Dotenv\Dotenv::createUnsafeImmutable(__DIR__);
+$dotenv->safeLoad();
+require_once getenv('CONFIG_THEME');
+require_once 'bootstrap.php';
+require_once 'src/Search.php';
+require_once 'src/BuildSearch.php';
+require_once 'src/CalendarGenerator.php';
+require_once 'src/RouteHelper.php';
+require_once 'src/PriceHandler.php';
+require_once 'src/Template.php';
+require_once 'src/IB3Tools.php';
+require_once 'src/GeoIP.php';
+header('Content-type: application/json');
+header('Cache-Control: no-cache, no-store, must-revalidate');
+header("Expires: Sat, 26 Jul 1997 05:00:00 GMT");
+header("Pragma: no-cache");
+$Output = new stdClass();
+$Output->error = true;
+$Output->result = null;
+$Output->html = array();
+$Output->msg = null;
+$Output->count = null;
+$request = json_decode(file_get_contents('php://input'));
+if (empty($_GET['action']) && !empty($_POST['action'])) {
+    $Output->result = $request;
+    echo json_encode($Output);
+    exit;
+} else if ($_GET['action'] == 'dateRangePicker') {
+    $currentDate = new DateTime('now');
+    $value = isset($_POST['value']) ? $_POST['value'] : '';
+    $minDate = isset($_POST['minDate']) ? $_POST['minDate'] : '';
+    $maxDate = isset($_POST['maxDate']) ? $_POST['maxDate'] : '';
+    $minYear = isset($_POST['minYear']) ? $_POST['minYear'] : '';
+    $maxYear = isset($_POST['maxYear']) ? $_POST['maxYear'] : '';
+    $departures = isset($_POST['departures']) ? $_POST['departures'] : '';
+
+    if ( is_array($departures) ) {
+        $departures = json_encode($departures);
+    }
+    $Calendar = new CalendarGenerator($currentDate, $value, $minDate, $maxDate, $minYear, $maxYear,$departures);
+    $CalendarObject = $Calendar->getCalendarObject();
+
+    require 'template-parts/pm-search/search/date-range-calendar.php';
+
+    exit;
+} else if ($_GET['action'] == 'offer-validation') {
+    $currentOffer = isset($_POST['offer_id']) ? $_POST['offer_id'] : null;
+    $Output = array('state' => 'invalid');
+
+    if ( $currentOffer === null ) {
+        $Output = array('state' => 'invalid');
+        echo json_encode($Output);
+        exit;
+    }
+
+    $id_media_object = (int)$_POST['media_object_id'];
+
+    if ( empty($id_media_object) ) {
+        $Output = array('state' => 'invalid');
+        echo json_encode($Output);
+        exit;
+    }
+
+    $args = [];
+    $mo = new \Pressmind\ORM\Object\MediaObject($id_media_object);
+
+    $CheapestPriceFilter = new CheapestPrice();
+
+    $valid_params = [];
+
+    // duration
+    if (empty($_POST['pm-du']) === false) {
+        $durationRange = BuildSearch::extractDurationRange($_POST['pm-du']);
+        if ($durationRange !== false) {
+            $valid_params['pm-du'] = $_POST['pm-du'];
+            $CheapestPriceFilter->duration_from = $durationRange[0];
+            $CheapestPriceFilter->duration_to = $durationRange[1];
+        }
+    }
+
+    // transport_type
+    if (empty($_POST['pm-tr']) === false) {
+        $transport_types = BuildSearch::extractTransportTypes($_POST['pm-tr']);
+        if(!empty($transport_types)){
+            $valid_params['pm-tr'] = $_POST['pm-tr'];
+            $CheapestPriceFilter->transport_types = $transport_types;
+        }
+    }
+
+    $args['media_object'] = $mo;
+    $args['cheapest_price'] = $mo->getCheapestPrice($CheapestPriceFilter);
+
+    // -- collecting offers based on data set
+    // -- @todo: airport have to be added heare, if pm-tr === 'FLUG' for validation.
+
+    // valid offers array
+    $validOffers = [];
+
+    if ( empty($args['cheapest_price']) || !empty($args['booking_on_request']) ) {
+        $Output = array('state' => 'invalid');
+        echo json_encode($Output);
+        exit;
+    }
+
+    $filter = new CheapestPrice();
+    $filter->occupancies_disable_fallback = false;
+    if ( !empty($_POST['pm-tr']) ) {
+        $filter->transport_types = [$_POST['pm-tr']];
+    }
+
+    /**
+     * @var \Pressmind\ORM\Object\CheapestPriceSpeed[] $offers
+     */
+    $offers = $args['media_object']->getCheapestPrices($filter, ['date_departure' => 'ASC', 'price_total' => 'ASC'], [0, 100]);
+
+    /**
+     * @var \Pressmind\ORM\Object\CheapestPriceSpeed[] $date_to_cheapest_price
+     */
+    $date_to_cheapest_price = [];
+    $durations = [];
+    $transport_types = [];
+    foreach($offers as $offer){
+        if($offer->duration != $args['cheapest_price']->duration) {
+            continue;
+        }
+        // if the date has multiple prices, display only the cheapest
+        if (!empty($date_to_cheapest_price[$offer->date_departure->format('Y-m-j')]) &&
+            $offer->price_total < $date_to_cheapest_price[$offer->date_departure->format('Y-m-j')]->price_total
+        ) {
+            // set the cheapier price
+            $date_to_cheapest_price[$offer->date_departure->format('Y-m-j')] = $offer;
+        } elseif (empty($date_to_cheapest_price[$offer->date_departure->format('Y-m-j')])
+        ){
+            $date_to_cheapest_price[$offer->date_departure->format('Y-m-j')] = $offer;
+        }
+    }
+
+    // find the min and max date range
+    $from = new DateTime(array_key_first($date_to_cheapest_price));
+    $from->modify('first day of this month');
+    $to = new DateTime(array_key_last($date_to_cheapest_price));
+    $to->modify('first day of next month');
+
+    // display always three month, even if only one or two months have a valid travel date
+    $interval = $to->diff($from);
+    if ($interval->format('%m') < 3) {
+        $add_months = 3 - $interval->format('%m');
+        $to->modify('+' . $add_months . ' month');
+    }
+
+    $today = new DateTime();
+    // loop trough all months
+    foreach (new DatePeriod($from, new DateInterval('P1M'), $to) as $dt) {
+        // fill the calendar grid
+        $days = array_merge(
+            array_fill(1, $dt->format('N') - 1, ' '),
+            range(1, $dt->format('t'))
+        );
+        if (count($days) < 35) {
+            $delta = 35 - count($days);
+            $days = array_merge($days, array_fill(1, $delta, ' '));
+        }
+
+        foreach ($days as $day) {
+            $current_date = $dt->format('Y-m-') . $day;
+
+            if (!empty($date_to_cheapest_price[$current_date])) {
+                if ( !in_array($date_to_cheapest_price[$current_date]->id, $validOffers) ) {
+                    array_push($validOffers, $date_to_cheapest_price[$current_date]->id);
+                }
+            }
+        }
+    }
+
+    if ( in_array($currentOffer, $validOffers ) ) {
+        $Output = array('state' => 'valid');
+        echo json_encode($Output);
+        exit;
+    }
+
+    $Output = array('state' => 'invalid');
+    echo json_encode($Output);
+    exit;
+} else if ($_GET['action'] == 'detail-booking-entrypoint-calendar' ) {
+    $id_media_object = (int)$_POST['id_media_object'];
+    if (empty($id_media_object) ) {
+        exit;
+    }
+    $args = [];
+    $args['media_object'] =  new \Pressmind\ORM\Object\MediaObject($id_media_object);
+    $args['calendar_filter'] = new \Pressmind\Search\CalendarFilter();
+    if(!empty($_POST['pm-du'])){
+        $args['calendar_filter']->duration = BuildSearch::extractDurationRange($_POST['pm-du'], null, true);
+    }
+    if(!empty($_POST['pm-tr'])){
+        $args['calendar_filter']->transport_type = BuildSearch::extractTransportTypes($_POST['pm-tr'], null, true);
+    }
+    if(!empty($_POST['pm-ap'])){
+        $args['calendar_filter']->airport = BuildSearch::extractAirport3L($_POST['pm-ap'], null);
+    }
+    if(!empty($_POST['persons'])){
+        $args['calendar_filter']->occupancy = !empty($_POST['persons']) && (int)$_POST['persons'] === 1 ? 1 : 2;
+    }
+    ob_start();
+    if($_POST['template'] == 'list'){
+        echo Template::render(APPLICATION_PATH . '/template-parts/pm-views/detail-blocks/booking-entrypoint-date-list.php', $args);
+    }else{
+        echo Template::render(APPLICATION_PATH . '/template-parts/pm-views/detail-blocks/booking-entrypoint-calendar.php', $args);
+    }
+    $Output->html = ob_get_contents();
+    ob_end_clean();
+    $Output->error = false;
+    $result = json_encode($Output);
+    if(json_last_error() > 0){
+        $Output->error = true;
+        $Output->msg = 'json error: '.json_last_error_msg();
+        $Output->html = $Output->msg;
+        $result = json_encode($Output);
+    }
+    echo $result;
+    exit;
+} else if ($_GET['action'] == 'search') {
+    $output = null;
+    $view = 'Teaser1';
+    if (!empty($_GET['view']) && preg_match('/^[0-9A-Za-z\_]+$/', $_GET['view']) !== false) {
+        $view = $_GET['view'];
+        if ($view == 'Calendar1') {
+            $output = 'date_list';
+        }
+    }
+    $args = Search::getResult($_GET, 2, 12, true, false, TS_TTL_FILTER, TS_TTL_SEARCH, $output);
+    $Output->count = (int)$args['total_result'];
+    if ($view == 'data') {
+        $Output->data = $args;
+    } else {
+        ob_start();
+        require 'template-parts/pm-search/result.php';
+        $Output->html['search-result'] = ob_get_contents();
+        ob_end_clean();
+        ob_start();
+        require 'template-parts/pm-search/filter-vertical.php';
+        $Output->html['search-filter'] = ob_get_contents();
+        ob_end_clean();
+    }
+    $Output->error = false;
+    $result = json_encode($Output);
+    if(json_last_error() > 0){
+        $Output->error = true;
+        $Output->msg = 'json error: '.json_last_error_msg();
+        $Output->html = $Output->msg;
+        $result = json_encode($Output);
+    }
+    echo $result;
+    exit;
+}  else if ($_GET['action'] == 'slider') { 
+    $output = null;
+    $view = 'Teaser1';
+    if(!empty($_GET['view']) && preg_match('/^[0-9A-Za-z\_]+$/', $_GET['view']) !== false){
+        $view = $_GET['view'];
+        if($view == 'Calendar1') {
+            $output = 'date_list';
+        }
+    }
+    $args = Search::getResult($_GET, 2, 12, true, false, TS_TTL_FILTER, TS_TTL_SEARCH, $output);
+    ob_start();
+    foreach ($args['items'] as $item) {
+        echo Template::render('template-parts/pm-views/'.$view.'.php', $item);
+    }
+    $Output->html['slider-result'] = ob_get_contents();
+    ob_end_clean();
+    $Output->error = false;
+    $result = json_encode($Output);
+    if(json_last_error() > 0){
+        $Output->error = true;
+        $Output->msg = 'json error: '.json_last_error_msg();
+        $Output->html = $Output->msg;
+        $result = json_encode($Output);
+    }
+    echo $result;
+    exit;
+} else if ($_GET['action'] == 'wishlist'){
+    /**
+     * @var array $result
+     * @var array $ids
+     */
+    ob_start();
+    require 'template-parts/pm-search/wishlist-result.php';
+    $Output->count = $result['total_result'];
+    $Output->mongo = $result['mongodb'];
+    $Output->ids = $ids;
+    $Output->html['wishlist-result'] = ob_get_contents();
+    ob_end_clean();
+    $Output->error = false;
+    $result = json_encode($Output);
+    echo $result;
+    exit;
+} else if ($_GET['action'] == 'visitedList'){
+    /**
+     * @var array $result
+     * @var array $ids
+     */
+    ob_start();
+    require 'template-parts/pm-search/wishlist-result.php';
+    $Output->count = $result['total_result'];
+    $Output->mongo = $result['mongodb'];
+    $Output->ids = $ids;
+    $Output->html['visited-result'] = ob_get_contents();
+    ob_end_clean();
+    $Output->error = false;
+    $result = json_encode($Output);
+    echo $result;
+    exit;
+} else if($_GET['action'] == 'visitedItems') {
+    $result = Search::getResult($_GET,2, 10, false, false, TS_TTL_FILTER, TS_TTL_SEARCH);
+    $view = 'Teaser1';
+    if (!empty($_GET['view']) && preg_match('/^[0-9A-Za-z\_]+$/', $_GET['view']) !== false) {
+        $view = $_GET['view'];
+    }
+    $ids = [];
+    if(isset($_GET['pm-time'])) {
+        $timestamps = explode(',', $_GET['pm-time']);
+    }
+    ob_start();
+    foreach ($result['items'] as $key => $item) {
+        $ids[] = $item['id_media_object'];
+        $item['class'] = 'col-12 col-md-6 col-lg-4';
+        $item['timestamp'] = $timestamps[$key] ?? null;
+        echo Template::render(__DIR__.'/template-parts/pm-views/'.$view.'.php', $item);
+    }
+    $Output->html = ob_get_contents();
+    ob_end_clean();
+    $Output->error = false;
+    $result = json_encode($Output);
+    echo $result;
+    exit;
+} else if ($_GET['action'] == 'searchbar'){
+    $args = [];
+    $args['search_box_tab'] = intval($_GET['pm-tab']);
+    if(!empty($_GET['pm-get']) && preg_match('/^[0-9A-Za-z\_\-]+$/', $_GET['pm-box']) !== false){
+        $args['search_box'] = $_GET['pm-tab'];
+    }
+    ob_start();
+    require 'template-parts/pm-search/search/searchbar-form.php';
+    $Output->html['main-search'] = ob_get_contents();
+    ob_end_clean();
+    $Output->error = false;
+    $result = json_encode($Output);
+    echo $result;
+    exit;
+} else if ($_GET['action'] == 'autocomplete') {
+    $args = Search::getResult($_GET,2, 12, true, false, TS_TTL_FILTER, TS_TTL_SEARCH);
+    ob_start();
+    require 'template-parts/pm-search/autocomplete.php';
+    $output = ob_get_contents();
+    ob_end_clean();
+    echo $output;
+    exit;
+} else if($_GET['action'] == 'bookingoffers') {
+    $args['media_object'] = new \Pressmind\ORM\Object\MediaObject($_GET['pm-id']);
+    $args['url'] = SITE_URL.$args['media_object']->getPrettyUrl();
+    $filters = new CheapestPrice();
+    if(!empty($_GET['pm-dr'])) {
+        $dateRange = BuildSearch::extractDaterange($_GET['pm-dr']);
+        list($from, $to) = $dateRange;
+        $filters->date_from = $from;
+        $filters->date_to = $to;
+    }
+
+    !empty($_GET['pm-tt']) && $_GET['pm-tt'] != 'false' ? $filters->transport_types = explode(',', strtoupper($_GET['pm-tt'])) : $filters->transport_types = null;
+    !empty($_GET['pm-ap']) && $_GET['pm-ap'] != 'false' ? $filters->transport_1_airport = explode(',', strtoupper($_GET['pm-ap'])) : $filters->airports = null;
+    if(!empty($_GET['pm-du']) && $_GET['pm-du'] != 'false') {
+        $durationArr = explode(',', $_GET['pm-du']);
+        sort( $durationArr);
+    }
+    !empty($_GET['pm-du']) && $_GET['pm-du'] != 'false' ? $filters->duration_from = $durationArr[array_key_first($durationArr)] : $filters->duration_from = null;
+    !empty($_GET['pm-du']) && $_GET['pm-du'] != 'false' ? $filters->duration_to = $durationArr[array_key_last($durationArr)] : $filters->duration_to = null;
+    !empty($_GET['pm-l']) && $_GET['pm-l'] != 'false' ? $limit = explode(',', $_GET['pm-l']) : '';
+    isset($limit) ? $limit = $limit : $limit = [0,15];
+    !empty($_GET['price_from']) ? $filters->price_from = $_GET['price_from'] : $filters->price_from = null;
+    !empty($_GET['price_to']) ? $filters->price_to = $_GET['price_to'] : '';
+    !empty($_GET['pm-ho']) ? $filters->occupancies = [$_GET['pm-ho']] : '';
+    $args['booking_offers'] = $args['media_object']->getCheapestPrices(!empty($filters) ? $filters : null, ['date_departure' => 'ASC', 'price_total' => 'ASC'], $limit);
+    $args['hide_month'] = false;
+    $args['available_options'] = $args['media_object']->getAllAvailableOptions();
+    if(isset($_GET['pm-oid']) && $_GET['pm-oid'] != 'undefined') {
+        $filterNew = new CheapestPrice();
+        $filterNew->id = $_GET['pm-oid'];
+        $selectedDate = $args['media_object']->getCheapestPrices(!empty($filterNew) ? $filterNew : null, null, [0,1]);
+        if(!empty($selectedDate)) {
+            $found = false;
+            for ($i = 0; $i < 3; ++$i) {
+                if(isset($args['booking_offers'][$i]) && $args['booking_offers'][$i]->getId() == $selectedDate[0]->getId()) {
+                    $found = true;
+                }
+            }
+            if(!$found) {
+                $args['hide_month'] = true;
+                array_unshift($args['booking_offers'], $selectedDate[0]);
+            }
+        }
+    }
+
+    $Output->total = count($args['booking_offers']);
+    if(!empty($_GET['type']) && $_GET['type'] == 'infinity') {
+        ob_start();
+        require 'template-parts/pm-views/detail-blocks/booking-offers-ajax-infinityload.php';
+        $Output->html['offer-section'] = ob_get_contents();
+        ob_end_clean();
+    } else {
+        $args['cheapest_price_id'] = isset($selectedDate) ? $selectedDate[0]->getId() : 999;
+        ob_start();
+        require 'template-parts/pm-views/detail-blocks/booking-offers-ajax.php';
+        $Output->html['booking-offers'] = ob_get_contents();
+        ob_end_clean();
+    }
+
+    $Output->error = false;
+    $result = json_encode($Output);
+    echo $result;
+    exit;
+
+} else if($_GET['action'] == 'bookingoffersfilter') {
+    $args['media_object'] = new \Pressmind\ORM\Object\MediaObject($_GET['pm-id']);
+    $args['booking_offers_intersection'] = $args['media_object']->getCheapestPricesOptions();
+    function sort_lowest($a, $b) { return strtotime($a) - strtotime($b); }
+    usort($args['booking_offers_intersection']->date_departure_from, "sort_lowest");
+    usort($args['booking_offers_intersection']->date_departure_to, "sort_lowest");
+    ob_start();
+    require 'template-parts/pm-views/detail-blocks/booking-offers-filter.php';
+    $Output->html['booking-filter'] = ob_get_contents();
+    ob_end_clean();
+    ob_start();
+    require 'template-parts/pm-views/detail-blocks/booking-offers-filter-mobile.php';
+    $Output->html['booking-filter-mobile'] = ob_get_contents();
+    ob_end_clean();
+    $Output->options = $args['booking_offers_intersection'];
+    $Output->error = false;
+    $result = json_encode($Output);
+    echo $result;
+    exit;
+} else if ($_GET['action'] == 'pm-view') {
+    $id_media_object = (int)$_GET['pm-id'];
+    if(empty($id_media_object)){
+        exit;
+    }
+    $view = 'Teaser1';
+    if(!empty($_GET['view']) && preg_match('/^[0-9A-Za-z\_]+$/', $_GET['view']) !== false){
+        $view = $_GET['view'];
+    }
+    $result = Search::getResult(['pm-id' => $id_media_object], 2, 1, false, false, TS_TTL_FILTER, TS_TTL_SEARCH);
+    $Output->error = true;
+    $Output->html = '<!-- media object not found -->';
+    if(!empty($result['items'][0])){
+        $Output->error = false;
+        $Output->html = Template::render(__DIR__ . '/template-parts/pm-views/' . $view . '.php', $result['items'][0]);
+    }
+    $result = json_encode($Output);
+    echo $result;
+    exit;
+}else if ($_GET['action'] == 'offers') {
+    $id_media_object = (int)$_GET['pm-id'];
+    if(empty($id_media_object)){
+        exit;
+    }
+    $mediaObject = new MediaObject($id_media_object);
+    $filter = new CheapestPrice();
+    if (!empty($_GET['pm-du']) === true && preg_match('/^([0-9]+)\-([0-9]+)$/', $_GET['pm-du']) > 0) {
+        list($filter->duration_from, $filter->duration_to) = explode('-', $_GET['pm-du']);
+    }
+    if (!empty($_GET['pm-dr']) === true) {
+        $dateRange = BuildSearch::extractDaterange($_GET['pm-dr']);
+        if($dateRange !== false){
+            $filter->date_from = $dateRange[0];
+            $filter->date_to = $dateRange[1];
+        }
+    }
+    $limit = [0,100];
+    if (!empty($_GET['pm-l']) === true && preg_match('/^([0-9]+)\,([0-9]+)$/', $_GET['pm-l'], $m) > 0) {
+        $limit = [intval($m[1]), intval($m[2])];
+    }
+    $filter->occupancies_disable_fallback = true;
+    $prices = $mediaObject->getCheapestPrices($filter, ['date_departure' => 'ASC', 'price_total' => 'ASC'], $limit);
+    $offers = [];
+    foreach($prices as $price){
+        $tmp = new \stdClass();
+        $tmp = $price->toStdClass(false);
+        $tmp->price_total_formatted = PriceHandler::format($price->price_total);
+        $tmp->ib3_url = IB3Tools::get_bookinglink($price, $mediaObject->getPrettyUrl());
+        $offers[] = $tmp;
+    }
+    $result = json_encode($offers);
+    echo $result;
+    exit;
+}else if ($_GET['action'] == 'checkAvailability') {
+    //print_r($request);
+    if(defined('TS_DEMO_MODE') && TS_DEMO_MODE === true){
+        sleep(1.5);
+        $demo_mode = [];
+        $demo_mode[0] = $demo_mode[1] = $demo_mode[2] = ['green', 'zur Buchung', 'bookable', true];
+        $demo_mode[3] = ['orange', 'Anfrage', 'request', true];
+        $demo_mode[4] = ['gray', 'Buchungsstop', '', false];
+        $demo_mode[5] = ['red', 'ausgebucht', '', false];
+        $random_state = array_rand($demo_mode, 1);
+        $r = new stdClass();
+        $r->class = $demo_mode[$random_state][0];
+        $r->msg = $r->btn_msg = $demo_mode[$random_state][1];
+        $r->booking_type = $demo_mode[$random_state][2];
+        $r->bookable = $demo_mode[$random_state][3];
+    }else{
+        sleep(0.2);
+        $r = new stdClass();
+        $r->class = 'green';
+        $r->msg = $r->btn_msg = 'zur Buchung';
+        $r->booking_type = 'bookable';
+        $r->bookable = true;
+    }
+    $result = json_encode($r);
+    echo $result;
+    exit;
+}else if ($_GET['action'] == 'getClientLocation') {
+    $location = \Pressmind\Travelshop\GeoIP::getLocation();
+    $result = json_encode($location);
+    echo $result;
+    exit;
+}else{
+    header("HTTP/1.0 400 Bad Request");
+    $Output->msg = 'error: action not known';
+    $Output->error = true;
+    echo json_encode($Output);
+    exit;
+}

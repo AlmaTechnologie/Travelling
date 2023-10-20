@@ -1,0 +1,86 @@
+/**
+ * Defines look of month teaser
+ */
+.teaser.month-teaser {
+  @include border-radius($teaser-border-radius);
+  background-color: $teaser-bg;
+  border: $teaser-border-width solid $teaser-border-color;
+
+  @include get-element-shadow('month-teaser');
+
+  // -- make it 2 column
+  > a {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+
+    color: inherit;
+    text-decoration: none;
+
+    // -- remove text decoration by hover, to prevent unwanted underlines by hovering block link
+    &:hover, &:focus, &:active {
+      text-decoration: none;
+    }
+
+    div.month-teaser-image {
+      flex: 0 0 30%;
+      width: 100%;
+      max-width: 30%;
+
+      @include border-left-radius($teaser-border-radius);
+
+      @if $teaser-border-width != 0 {
+          margin-left: -$teaser-border-width;
+          margin-top: -$teaser-border-width;
+          margin-bottom: -$teaser-border-width;
+      }
+
+      @extend %media-cover;
+
+      @include media-breakpoint-down(xs) {
+        flex: 0 0 6rem;
+        max-width: 6rem;
+      }
+    }
+
+    div.month-teaser-title {
+      flex: 1;
+
+      padding: $teaser-spacer-x;
+      display: flex;
+      flex-direction: row;
+
+      gap: $teaser-spacer-y;
+
+      justify-content: space-between;
+      align-items: center;
+
+      transition: color $animation-speed-default;
+
+      @include font-size-generator($h5-font-sizes);
+      font-weight: $headings-font-weight;
+
+      // -- icon settings
+      svg {
+        width: 1.5rem;
+        height: 1.5rem;
+
+        opacity: .5;
+
+        color: $body-color-light;
+        transition: transform $animation-speed-default;
+      }
+    }
+
+    // -- make block link hover
+    &:hover {
+      div.month-teaser-title {
+        color: $primary;
+
+        svg {
+          transform: translateX(($teaser-spacer-x / 2));
+        }
+      }
+    }
+  }
+}
